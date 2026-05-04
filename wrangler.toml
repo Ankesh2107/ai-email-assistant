@@ -1,0 +1,7 @@
+name = "ai-email-assistant"
+main = "worker.js"
+compatibility_date = "2024-05-04"
+
+# For local development
+[env.production]
+vars = { GROQ_API_KEY = "your-key-here" }
