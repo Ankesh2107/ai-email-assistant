@@ -1,6 +1,6 @@
 /**
  * AI Email Assistant - Frontend JavaScript
- * Handles user interactions and API communication
+ * Handles user interactions and API communication with Cloudflare Worker
  */
 
 // DOM Elements
@@ -18,8 +18,8 @@ const categoryText = document.querySelector('.category-text');
 const replyText = document.getElementById('replyText');
 const copyBtn = document.getElementById('copyBtn');
 
-// API Configuration
-const API_ENDPOINT = '/process';
+// API Configuration - Cloudflare Worker URL
+const WORKER_URL = 'https://ai-email-assistant.ankeshrai2003.workers.dev';
 
 /**
  * Initialize the application
@@ -99,14 +99,14 @@ async function handleProcessEmail() {
         clearError();
         hideResults();
         
-        // Send request to API
-        const response = await fetch(API_ENDPOINT, {
+        // Send request to Cloudflare Worker
+        const response = await fetch(WORKER_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                text: emailText
+                message: emailText  // Note: Changed from 'text' to 'message'
             })
         });
         
@@ -116,8 +116,28 @@ async function handleProcessEmail() {
             throw new Error(data.error || 'Failed to process email');
         }
         
+        // Check for API errors
+        if (data.error) {
+            throw new Error(data.error.message || data.error);
+        }
+        
+        // Extract reply from Groq response
+        let reply = '';
+        let category = 'GENERAL'; // Default category
+        
+        if (data.choices && data.choices[0] && data.choices[0].message) {
+            reply = data.choices[0].message.content;
+        } else if (data.reply) {
+            reply = data.reply;
+        } else {
+            throw new Error('Unexpected response format from AI service');
+        }
+        
+        // Optional: Add simple email classification based on content
+        category = classifyEmail(emailText);
+        
         // Display results
-        displayResults(data.category, data.reply);
+        displayResults(category, reply);
         
     } catch (error) {
         console.error('Error processing email:', error);
@@ -125,6 +145,32 @@ async function handleProcessEmail() {
     } finally {
         setLoadingState(false);
     }
+}
+
+/**
+ * Simple email classification based on keywords
+ * You can enhance this or let the AI do it
+ */
+function classifyEmail(text) {
+    const lowerText = text.toLowerCase();
+    
+    // Support-related keywords
+    const supportKeywords = ['help', 'issue', 'problem', 'error', 'trouble', 'broken', 'not working', 'cannot', "can't", 'unable', 'fix', 'bug'];
+    for (const keyword of supportKeywords) {
+        if (lowerText.includes(keyword)) {
+            return 'SUPPORT';
+        }
+    }
+    
+    // Sales-related keywords
+    const salesKeywords = ['price', 'cost', 'quote', 'pricing', 'purchase', 'buy', 'subscription', 'plan', 'enterprise', 'demo', 'trial'];
+    for (const keyword of salesKeywords) {
+        if (lowerText.includes(keyword)) {
+            return 'SALES';
+        }
+    }
+    
+    return 'GENERAL';
 }
 
 /**
@@ -283,7 +329,7 @@ function hideResults() {
 }
 
 /**
- * Add sample text for testing (development helper)
+ * Add sample text for testing
  */
 function addSampleText() {
     const sampleEmails = [
@@ -297,26 +343,29 @@ function addSampleText() {
     updateCharCounter();
 }
 
-// Development helper - add sample button (remove in production)
-if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    const sampleBtn = document.createElement('button');
-    sampleBtn.textContent = 'Load Sample';
-    sampleBtn.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 8px 12px;
-        background: #667eea;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 0.85rem;
-        z-index: 1000;
-    `;
-    sampleBtn.addEventListener('click', addSampleText);
-    document.body.appendChild(sampleBtn);
-}
+// Add sample button for easy testing
+const sampleBtn = document.createElement('button');
+sampleBtn.textContent = '📝 Load Sample';
+sampleBtn.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 10px 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+`;
+sampleBtn.onmouseover = () => sampleBtn.style.transform = 'scale(1.05)';
+sampleBtn.onmouseout = () => sampleBtn.style.transform = 'scale(1)';
+sampleBtn.addEventListener('click', addSampleText);
+document.body.appendChild(sampleBtn);
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', init);
