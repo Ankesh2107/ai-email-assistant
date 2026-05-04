@@ -1,4 +1,4 @@
-// worker.js
+// worker.js - Updated with working model
 export default {
   async fetch(request, env) {
     // Handle CORS preflight requests
@@ -26,7 +26,7 @@ export default {
       // Get the message from the request
       const { message } = await request.json();
 
-      // Call Groq API with the secret key
+      // Call Groq API with working model
       const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -34,7 +34,7 @@ export default {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'mixtral-8x7b-32768',
+          model: 'llama3-70b-8192',  // Updated to working model
           messages: [
             {
               role: 'system',
